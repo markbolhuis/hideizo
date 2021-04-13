@@ -131,8 +131,12 @@ static ssize_t eizo_attr_store_brightness(struct device *dev, struct device_attr
     value = clamp(value, 0, 200);
 
     hdev = to_hid_device(dev);
+
+    hid_info(hdev, "store %s: %d\n", attr->attr.name, value);
+
     res = eizo_set_value(hdev, EIZO_USAGE_BRIGHTNESS, value);
     if (res < 0) {
+        hid_err(hdev, "failed to set %s value to %d, error %d\n", attr->attr.name, value, res);
         return -EPERM;
     }
 
@@ -141,13 +145,15 @@ static ssize_t eizo_attr_store_brightness(struct device *dev, struct device_attr
 
 static ssize_t eizo_attr_show_brightness(struct device *dev, struct device_attribute *attr, char *buf) {
     struct hid_device *hdev;
-    int value, ret;
+    int value, res;
 
     hdev = to_hid_device(dev);
-    ret = eizo_get_value(hdev, EIZO_USAGE_BRIGHTNESS, &value);
-    if (ret < 0) {
+    res = eizo_get_value(hdev, EIZO_USAGE_BRIGHTNESS, &value);
+    if (res < 0) {
+        hid_err(hdev, "failed to get %s value, error %d\n", attr->attr.name, res);
         return -ENODATA;
     }
+    hid_info(hdev, "show %s: %d\n", attr->attr.name, value);
 
     return sprintf(buf, "%d\n", value);
 }
@@ -228,6 +234,14 @@ static void eizo_hid_driver_remove(struct hid_device *hdev) {
 }
 
 static int eizo_hid_driver_raw_event(struct hid_device *hdev, struct hid_report *report, u8 *data, int size) {
+    int id, usage, counter, value;
+
+    id = data[0];
+    usage = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
+    counter = data[5] | (data[6] << 8);
+    value = data[7] | (data[8] << 8) | (data[9] << 16) | (data[10] << 24);
+
+    hid_info(hdev, "raw_event: %02x %08x %04x %08x\n", id, usage, counter, value);
     return 0;
 }
 
