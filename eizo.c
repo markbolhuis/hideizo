@@ -176,6 +176,10 @@ static void eizo_data_init(struct eizo_data *data, struct hid_device *hdev) {
     data->counter = 0x0001;
 }
 
+static void eizo_data_uninit(struct eizo_data *data) {
+    mutex_destroy(&data->lock);
+}
+
 static int eizo_hid_driver_probe(struct hid_device *hdev, const struct hid_device_id *id) {
     struct eizo_data *data;
     int retval = 0;
@@ -227,7 +231,7 @@ static void eizo_hid_driver_remove(struct hid_device *hdev) {
     struct eizo_data *data;
     data = hid_get_drvdata(hdev);
 
-    mutex_destroy(&data->lock);
+    eizo_data_uninit(data);
     sysfs_remove_group(&hdev->dev.kobj, &eizo_attr_group);
     hid_hw_close(hdev);
     hid_hw_stop(hdev);
