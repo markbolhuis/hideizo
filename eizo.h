@@ -74,6 +74,7 @@
 #define EIZO_USAGE_FREQ_DIAGONAL   0x0111ff01
 
 #define EIZO_USAGE_DEBUG_MODE      0x0006ff02
+#define EIZO_USAGE_SERIAL          0x0036ff02
 #define EIZO_USAGE_MODEL2          0x0100ff02
 
 /*
