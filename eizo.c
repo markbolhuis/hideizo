@@ -232,6 +232,7 @@ static int eizo_hid_driver_raw_event(struct hid_device *hdev, struct hid_report 
 }
 
 static const struct hid_device_id eizo_hid_driver_id_table[] = {
+        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2460) },
         { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2760) },
         // Known PIDs of monitors which have not been tested.
         // { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2785) },
