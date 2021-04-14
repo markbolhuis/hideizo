@@ -55,6 +55,7 @@
 #define EIZO_USAGE_POWER           0x00b8ff00
 #define EIZO_USAGE_AUTO_ECOVIEW    0x00b9ff00
 #define EIZO_USAGE_MODEL           0x00c3ff00
+#define EIZO_USAGE_STATE           0x00c9ff00
 #define EIZO_USAGE_HORIZONTAL_RES  0x00caff00
 #define EIZO_USAGE_VERTICAL_RES    0x00cbff00
 
