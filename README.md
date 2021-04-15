@@ -20,7 +20,7 @@ color control, and input selection.
 There are also some hidden settings not exposed in either the OSD or the 
 Screen InStyle software such as OSD menu locking and a debug mode.
 
-For the full list of features currently understood see the values in `eizo.h`.
+For the full list of features currently understood see the usage values in the wiki.
 
 Building and running
 --------------------
