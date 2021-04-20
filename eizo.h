@@ -39,6 +39,7 @@
 /*
  *  Consumer Usage Page
  */
+
 #define EIZO_USAGE_VOLUME          0x00e0000c
 
 /*
@@ -173,7 +174,7 @@
 
 struct eizo_data {
     struct mutex lock;
-    ushort counter;
+    u16 counter;
 };
 
 #endif // EIZO_H_FILE
