@@ -22,6 +22,19 @@
 // #define USB_PRODUCT_ID_EIZO_EV2480 ?
 // #define USB_PRODUCT_ID_EIZO_EV2360 ?
 
+#define EIZO_USAGE_PAGE       0xff30
+
+#define EIZO_REPORT_DESC      0x0001
+#define EIZO_REPORT_SET       0x0002
+#define EIZO_REPORT_GET       0x0003
+#define EIZO_REPORT_SET2      0x0004
+#define EIZO_REPORT_GET2      0x0005
+#define EIZO_REPORT_COUNTER   0x0006
+#define EIZO_REPORT_VERIFY    0x0007
+#define EIZO_REPORT_SN_MODEL  0x0008
+#define EIZO_REPORT_INFO      0x0009
+#define EIZO_REPORT_10        0x000a
+
 /*
  *  Usages
  *  These appear to be 'standard' hid usages where bytes 1 and 2 are the usage page
@@ -64,6 +77,7 @@
 #define EIZO_USAGE_EEP_DATA        0x0031ff00
 #define EIZO_USAGE_USAGE_TIME      0x0037ff00
 #define EIZO_USAGE_GAMMA           0x0066ff00
+#define EIZO_USAGE_DESTINATION     0x007cff00
 #define EIZO_USAGE_PICTURE_EXP     0x00a5ff00
 #define EIZO_USAGE_SATURATION      0x00b3ff00
 #define EIZO_USAGE_HUE             0x00b4ff00
@@ -92,6 +106,7 @@
 
 #define EIZO_USAGE_DEBUG_MODE      0x0006ff02
 #define EIZO_USAGE_SERIAL          0x0036ff02
+#define EIZO_USAGE_AGING_MODE      0x0044ff02
 #define EIZO_USAGE_MODEL2          0x0100ff02
 
 /*
