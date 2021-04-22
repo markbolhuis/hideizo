@@ -78,6 +78,7 @@
 #define EIZO_USAGE_USAGE_TIME      0x0037ff00
 #define EIZO_USAGE_GAMMA           0x0066ff00
 #define EIZO_USAGE_DESTINATION     0x007cff00
+#define EIZO_USAGE_TEST            0x008cff00
 #define EIZO_USAGE_PICTURE_EXP     0x00a5ff00
 #define EIZO_USAGE_SATURATION      0x00b3ff00
 #define EIZO_USAGE_HUE             0x00b4ff00
