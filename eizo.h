@@ -191,6 +191,9 @@
 struct eizo_data {
     struct mutex lock;
     u16 counter;
+
+    int pseudo_desc_size;
+    u8* pseudo_desc;
 };
 
 #endif // EIZO_H_FILE

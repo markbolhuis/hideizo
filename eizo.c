@@ -13,6 +13,71 @@
 
 #include "eizo.h"
 
+int eizo_get_pseudo_descriptor(struct hid_device *hdev, u8 **desc) {
+    u8 *report, *temp;
+    int ret, i, size, size2, index, count, cpy, pos;
+
+    report = kzalloc(517, GFP_KERNEL);
+    if (IS_ERR(report)) {
+        return -ENOMEM;
+    }
+
+    ret = hid_hw_raw_request(hdev, 1, report, 517, HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+    if (ret < 0) {
+        kfree(report);
+        return ret;
+    }
+
+    ret = hid_hw_raw_request(hdev, 1, report, 517, HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+    if (ret < 0) {
+        kfree(report);
+        return ret;
+    }
+
+    index = report[1] | (report[2] << 8);
+    size  = report[3] | (report[4] << 8);
+
+    count = (size % 512) ? size / 512 + 1 : size / 512;
+
+    temp = devm_kmalloc(&hdev->dev, size, GFP_KERNEL);
+    if (IS_ERR(temp)) {
+        kfree(report);
+        return -ENOMEM;
+    }
+
+    cpy = min(size, 512);
+    memcpy(temp, report + 5, cpy);
+
+    for (i = 1; i < count; ++i) {
+        pos = i * 512;
+        cpy = min(size - pos, 512);
+
+        ret = hid_hw_raw_request(hdev, 1, report, 517, HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+        if (ret < 0) {
+            hid_err(hdev, "failed to get block %d of pseudo descriptor: %d\n", i, ret);
+            goto free;
+        }
+
+        index  = report[1] | (report[2] << 8);
+        size2  = report[3] | (report[4] << 8);
+
+        if (size != size2) {
+            hid_err(hdev, "pseudo descriptor size mismatch for block %d: %d != %d\n", i, size, size2);
+            goto free;
+        }
+
+        memcpy(temp + pos, report + 5, cpy);
+    }
+
+    kfree(report);
+    *desc = temp;
+    return size;
+
+free:
+    devm_kfree(&hdev->dev, temp);
+    kfree(report);
+    return ret;
+}
 
 int eizo_set_value(struct hid_device *hdev, u32 usage, u8 value[32]) {
     struct eizo_data *data;
@@ -168,8 +233,16 @@ static struct attribute_group eizo_attr_group = {
 
 
 void eizo_data_init(struct eizo_data *data, struct hid_device *hdev) {
+    int size;
+
     mutex_init(&data->lock);
     data->counter = 0x0001;
+
+    size = eizo_get_pseudo_descriptor(hdev, &data->pseudo_desc);
+    if (size < 0) {
+        return;
+    }
+    data->pseudo_desc_size = size;
 }
 
 void eizo_data_uninit(struct eizo_data *data) {
