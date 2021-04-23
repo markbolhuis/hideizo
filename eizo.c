@@ -14,7 +14,7 @@
 #include "eizo.h"
 
 
-int eizo_set_value(struct hid_device *hdev, u32 usage, u8 *value, size_t len) {
+int eizo_set_value(struct hid_device *hdev, u32 usage, u8 value[32]) {
     struct eizo_data *data;
     u16 counter;
     u8 *report;
@@ -41,7 +41,7 @@ int eizo_set_value(struct hid_device *hdev, u32 usage, u8 *value, size_t len) {
     report[5] = (counter >> 0) & 0xff;
     report[6] = (counter >> 8) & 0xff;
 
-    memcpy(&report[7], value, len);
+    memcpy(&report[7], value, 32);
 
     ret = hid_hw_raw_request(hdev, 2, report, 39, HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
     if (ret < 0) {
@@ -56,7 +56,7 @@ exit:
     return ret;
 }
 
-int eizo_get_value(struct hid_device *hdev, u32 usage, u8 *value, size_t len) {
+int eizo_get_value(struct hid_device *hdev, u32 usage, u8 value[32]) {
     struct eizo_data *data;
     u16 counter;
     u8 *report;
@@ -97,7 +97,7 @@ int eizo_get_value(struct hid_device *hdev, u32 usage, u8 *value, size_t len) {
         goto exit;
     }
 
-    memcpy(value, &report[7], len);
+    memcpy(value, &report[7], 32);
 
     ret = 0;
 exit:
@@ -109,6 +109,7 @@ exit:
 
 static ssize_t eizo_attr_store_brightness(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
     struct hid_device *hdev;
+    u8 buffer[32];
     u16 value;
     int res;
 
@@ -121,8 +122,12 @@ static ssize_t eizo_attr_store_brightness(struct device *dev, struct device_attr
     }
 
     hdev = to_hid_device(dev);
-    cpu_to_le16s(&value);
-    res = eizo_set_value(hdev, EIZO_USAGE_BRIGHTNESS, (u8 *)&value, 2);
+
+    memset(buffer, 0, 32);
+    buffer[0] = (value >> 0) & 0xff;
+    buffer[1] = (value >> 8) & 0xff;
+
+    res = eizo_set_value(hdev, EIZO_USAGE_BRIGHTNESS, buffer);
     if (res < 0) {
         hid_err(hdev, "failed to set %s value to %d, error %d\n", attr->attr.name, value, res);
         return res;
@@ -133,17 +138,18 @@ static ssize_t eizo_attr_store_brightness(struct device *dev, struct device_attr
 
 static ssize_t eizo_attr_show_brightness(struct device *dev, struct device_attribute *attr, char *buf) {
     struct hid_device *hdev;
+    u8 buffer[32];
     u16 value;
     int res;
 
     hdev = to_hid_device(dev);
-    res = eizo_get_value(hdev, EIZO_USAGE_BRIGHTNESS, (u8 *)&value, 2);
+    res = eizo_get_value(hdev, EIZO_USAGE_BRIGHTNESS, buffer);
     if (res < 0) {
         hid_err(hdev, "failed to get %s value, error %d\n", attr->attr.name, res);
         return -ENODATA;
     }
 
-    le16_to_cpus(&value);
+    value = buffer[0] | (buffer[1] << 8);
     return sprintf(buf, "%u\n", value);
 }
 
@@ -233,8 +239,10 @@ static int eizo_hid_driver_raw_event(struct hid_device *hdev, struct hid_report 
     u8 id;
 
     switch(report->id) {
-        case 0x02:
-        case 0x03:
+        case EIZO_REPORT_SET:
+        case EIZO_REPORT_GET:
+        case EIZO_REPORT_SET2:
+        case EIZO_REPORT_GET2:
             id = data[0];
             usage = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
             counter = data[5] | (data[6] << 8);
