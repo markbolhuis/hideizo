@@ -15,7 +15,7 @@
 
 int eizo_get_pseudo_descriptor(struct hid_device *hdev, u8 **desc) {
     u8 *report, *temp;
-    int ret, i, size, size2, index, count, cpy, pos;
+    int ret, size, size2, offset, cpy, pos;
 
     report = kzalloc(517, GFP_KERNEL);
     if (IS_ERR(report)) {
@@ -24,20 +24,26 @@ int eizo_get_pseudo_descriptor(struct hid_device *hdev, u8 **desc) {
 
     ret = hid_hw_raw_request(hdev, 1, report, 517, HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
     if (ret < 0) {
+        hid_err(hdev, "failed to set hid report: %d\n", ret);
         kfree(report);
         return ret;
     }
 
     ret = hid_hw_raw_request(hdev, 1, report, 517, HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
     if (ret < 0) {
+        hid_err(hdev, "failed to get block at 0x0000 of pseudo descriptor: %d\n", ret);
         kfree(report);
         return ret;
     }
 
-    index = report[1] | (report[2] << 8);
-    size  = report[3] | (report[4] << 8);
+    offset = report[1] | (report[2] << 8);
+    size   = report[3] | (report[4] << 8);
 
-    count = (size % 512) ? size / 512 + 1 : size / 512;
+    if (offset != 0) {
+        hid_err(hdev, "pseudo descriptor block offset incorrect: %d != 0\n", offset);
+        kfree(report);
+        return -EPERM;
+    }
 
     temp = devm_kmalloc(&hdev->dev, size, GFP_KERNEL);
     if (IS_ERR(temp)) {
@@ -48,21 +54,27 @@ int eizo_get_pseudo_descriptor(struct hid_device *hdev, u8 **desc) {
     cpy = min(size, 512);
     memcpy(temp, report + 5, cpy);
 
-    for (i = 1; i < count; ++i) {
-        pos = i * 512;
+    for (pos = 512; pos < size; pos += 512) {
         cpy = min(size - pos, 512);
 
         ret = hid_hw_raw_request(hdev, 1, report, 517, HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
         if (ret < 0) {
-            hid_err(hdev, "failed to get block %d of pseudo descriptor: %d\n", i, ret);
+            hid_err(hdev, "failed to get block at 0x%04x of pseudo descriptor: %d\n", pos, ret);
             goto free;
         }
 
-        index  = report[1] | (report[2] << 8);
+        offset = report[1] | (report[2] << 8);
         size2  = report[3] | (report[4] << 8);
 
+        if(offset != pos) {
+            hid_err(hdev, "pseudo descriptor block offset incorrect: 0x%04x != 0x%04x\n", offset, pos);
+            ret = -EPERM;
+            goto free;
+        }
+
         if (size != size2) {
-            hid_err(hdev, "pseudo descriptor size mismatch for block %d: %d != %d\n", i, size, size2);
+            hid_err(hdev, "pseudo descriptor block size mismatch: %d != %d\n", size, size2);
+            ret = -EPERM;
             goto free;
         }
 
