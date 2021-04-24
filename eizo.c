@@ -15,7 +15,8 @@
 
 int eizo_get_pseudo_descriptor(struct hid_device *hdev, u8 **desc) {
     u8 *report, *temp;
-    int ret, size, size2, offset, cpy, pos;
+    unsigned int size, size2, offset, cpy, pos;
+    int ret;
 
     report = kzalloc(517, GFP_KERNEL);
     if (IS_ERR(report)) {
@@ -40,7 +41,7 @@ int eizo_get_pseudo_descriptor(struct hid_device *hdev, u8 **desc) {
     size   = report[3] | (report[4] << 8);
 
     if (offset != 0) {
-        hid_err(hdev, "pseudo descriptor block offset incorrect: %d != 0\n", offset);
+        hid_err(hdev, "pseudo descriptor block offset incorrect: 0x%04x != 0x0000\n", offset);
         kfree(report);
         return -EPERM;
     }
@@ -51,11 +52,11 @@ int eizo_get_pseudo_descriptor(struct hid_device *hdev, u8 **desc) {
         return -ENOMEM;
     }
 
-    cpy = min(size, 512);
+    cpy = min_t(unsigned int, size, 512);
     memcpy(temp, report + 5, cpy);
 
     for (pos = 512; pos < size; pos += 512) {
-        cpy = min(size - pos, 512);
+        cpy = min_t(unsigned int, size - pos, 512);
 
         ret = hid_hw_raw_request(hdev, 1, report, 517, HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
         if (ret < 0) {
@@ -73,7 +74,7 @@ int eizo_get_pseudo_descriptor(struct hid_device *hdev, u8 **desc) {
         }
 
         if (size != size2) {
-            hid_err(hdev, "pseudo descriptor block size mismatch: %d != %d\n", size, size2);
+            hid_err(hdev, "pseudo descriptor block size mismatch: %u != %u\n", size, size2);
             ret = -EPERM;
             goto free;
         }
