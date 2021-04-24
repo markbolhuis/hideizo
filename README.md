@@ -26,7 +26,7 @@ Building and running
 --------------------
 Make sure you have linux kernel headers installed for your distribution
 ```shell
-git clone https://github.com/markbolhuis/openeizo
+git clone https://github.com/openeizo/openeizo
 cd openeizo
 make
 sudo insmod eizo
