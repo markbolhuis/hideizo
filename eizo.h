@@ -35,6 +35,8 @@
 #define EIZO_REPORT_INFO      0x0009
 #define EIZO_REPORT_10        0x000a
 
+#define HID_GROUP_EIZO        0x0106
+
 /*
  *  Usages
  *  These appear to be 'standard' hid usages where bytes 1 and 2 are the usage page
@@ -135,10 +137,12 @@
 #define EIZO_VALUE_GAMMA_2_2 0x04
 #define EIZO_VALUE_GAMMA_2_4 0x05
 
-#define EIZO_VALUE_INPUT_DVI  0x0200
-#define EIZO_VALUE_INPUT_DP1  0x0300
-#define EIZO_VALUE_INPUT_DP2  0x0301
-#define EIZO_VALUE_INPUT_HDMI 0x0400
+#define EIZO_VALUE_INPUT_DSUB  0x0100
+#define EIZO_VALUE_INPUT_DVI   0x0200
+#define EIZO_VALUE_INPUT_DP1   0x0300
+#define EIZO_VALUE_INPUT_DP2   0x0301
+#define EIZO_VALUE_INPUT_HDMI1 0x0400
+#define EIZO_VALUE_INPUT_HDMI2 0x0401
 
 #define EIZO_VALUE_PROFILE_MOVIE 0x02
 #define EIZO_VALUE_PROFILE_SRGB  0x04
@@ -192,8 +196,11 @@ struct eizo_data {
     struct mutex lock;
     u16 counter;
 
-    int pseudo_desc_size;
-    u8* pseudo_desc;
+    struct hid_device *vdev;
+    bool is_vdev_open;
+
+    unsigned pseudo_desc_size;
+    u8 *pseudo_desc;
 };
 
 #endif // EIZO_H_FILE
