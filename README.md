@@ -22,27 +22,6 @@ Screen InStyle software such as OSD menu locking and a debug mode.
 
 For the full list of features currently understood see the usage values in the wiki.
 
-Building and running
---------------------
-Make sure you have linux kernel headers installed for your distribution
-```shell
-git clone https://github.com/openeizo/openeizo
-cd openeizo
-make
-sudo insmod eizo
-```
-
-Interfacing is done through device files.
-```shell
-$ cd /sys/bus/hid/devices/<id>/settings
-$ cat brightness
-160
-$ echo 170 > brightness
-$ cat brightness
-170
-```
-Since this is early software there is only brightness control.
-
 Contributing
 ------------
 If you have an EV FlexScan monitor then please open an issue
