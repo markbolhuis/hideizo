@@ -24,16 +24,17 @@
 
 #define EIZO_USAGE_PAGE       0xff30
 
-#define EIZO_REPORT_DESC      0x0001
-#define EIZO_REPORT_SET       0x0002
-#define EIZO_REPORT_GET       0x0003
-#define EIZO_REPORT_SET2      0x0004
-#define EIZO_REPORT_GET2      0x0005
-#define EIZO_REPORT_COUNTER   0x0006
-#define EIZO_REPORT_VERIFY    0x0007
-#define EIZO_REPORT_SN_MODEL  0x0008
-#define EIZO_REPORT_INFO      0x0009
-#define EIZO_REPORT_10        0x000a
+#define EIZO_REPORT_DESC      0x01
+#define EIZO_REPORT_SET       0x02
+#define EIZO_REPORT_GET       0x03
+#define EIZO_REPORT_SET2      0x04
+#define EIZO_REPORT_GET2      0x05
+#define EIZO_REPORT_COUNTER   0x06
+#define EIZO_REPORT_VERIFY    0x07
+#define EIZO_REPORT_SN_MODEL  0x08
+#define EIZO_REPORT_INFO      0x09
+#define EIZO_REPORT_10        0x0a
+#define EIZO_REPORT_11        0x0b
 
 #define HID_GROUP_EIZO        0x0106
 
