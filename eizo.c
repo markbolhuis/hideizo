@@ -200,12 +200,10 @@ exit:
 
 static int eizo_ll_parse(struct hid_device *hdev) {
     struct eizo_data *data;
-    struct hid_device *parent;
 
     hid_info(hdev, "%s\n", __func__);
 
-    parent = to_hid_device(hdev->dev.parent);
-    data = hid_get_drvdata(parent);
+    data = dev_get_drvdata(hdev->dev.parent);
 
     return hid_parse_report(hdev, data->pseudo_desc, data->pseudo_desc_size);
 }
