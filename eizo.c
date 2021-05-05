@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/hid.h>
+#include <asm/unaligned.h>
 
 #include "eizo.h"
 
@@ -37,8 +38,8 @@ int eizo_get_pseudo_descriptor(struct hid_device *hdev, u8 **desc, unsigned *des
         return ret;
     }
 
-    offset = report[1] | (report[2] << 8);
-    size   = report[3] | (report[4] << 8);
+    offset = get_unaligned_le16(report + 1);
+    size   = get_unaligned_le16(report + 3);
 
     if (offset != 0) {
         hid_err(hdev, "pseudo descriptor block offset incorrect: 0x%04x != 0x0000\n", offset);
@@ -64,8 +65,8 @@ int eizo_get_pseudo_descriptor(struct hid_device *hdev, u8 **desc, unsigned *des
             goto free;
         }
 
-        offset = report[1] | (report[2] << 8);
-        size2  = report[3] | (report[4] << 8);
+        offset = get_unaligned_le16(report + 1);
+        size2  = get_unaligned_le16(report + 3);
 
         if(offset != pos) {
             hid_err(hdev, "pseudo descriptor block offset incorrect: 0x%04x != 0x%04x\n", offset, pos);
@@ -112,14 +113,8 @@ int eizo_set_value(struct hid_device *hdev, u32 usage, u8 value[32]) {
     mutex_lock(&data->lock);
     counter = data->counter;
 
-    report[1] = (usage >> 0) & 0xff;
-    report[2] = (usage >> 8) & 0xff;
-    report[3] = (usage >> 16) & 0xff;
-    report[4] = (usage >> 24) & 0xff;
-
-    report[5] = (counter >> 0) & 0xff;
-    report[6] = (counter >> 8) & 0xff;
-
+    put_unaligned_le32(usage, report + 1);
+    put_unaligned_le16(counter, report + 5);
     memcpy(&report[7], value, 32);
 
     ret = hid_hw_raw_request(hdev, EIZO_REPORT_SET, report, 39, HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
@@ -156,13 +151,8 @@ int eizo_get_value(struct hid_device *hdev, u32 usage, u8 value[32]) {
     mutex_lock(&data->lock);
     counter = data->counter;
 
-    report[1] = (usage >>  0) & 0xff;
-    report[2] = (usage >>  8) & 0xff;
-    report[3] = (usage >> 16) & 0xff;
-    report[4] = (usage >> 24) & 0xff;
-
-    report[5] = (counter >> 0) & 0xff;
-    report[6] = (counter >> 8) & 0xff;
+    put_unaligned_le32(usage, report + 1);
+    put_unaligned_le16(counter, report + 5);
 
     ret = hid_hw_raw_request(hdev, EIZO_REPORT_GET, report, 39, HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
     if (ret < 0) {
@@ -200,7 +190,7 @@ int eizo_get_counter(struct hid_device *hdev, u16 *counter) {
         goto exit;
     }
 
-    *counter = report[1] | (report[2] << 8);
+    *counter = get_unaligned_le16(report + 1);
     ret = 0;
 exit:
     kfree(report);
@@ -400,7 +390,8 @@ static void eizo_hid_driver_remove(struct hid_device *hdev) {
 }
 
 static int eizo_hid_driver_raw_event(struct hid_device *hdev, struct hid_report *report, u8 *data, int size) {
-    u32 usage, value;
+    u32 usage;
+    u64 value;
     u16 counter;
     u8 id;
 
@@ -409,12 +400,12 @@ static int eizo_hid_driver_raw_event(struct hid_device *hdev, struct hid_report 
         case EIZO_REPORT_GET:
         case EIZO_REPORT_SET2:
         case EIZO_REPORT_GET2:
-            id = data[0];
-            usage = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
-            counter = data[5] | (data[6] << 8);
-            value = data[7] | (data[8] << 8) | (data[9] << 16) | (data[10] << 24);
+            id      = data[0];
+            usage   = get_unaligned_le32(data + 1);
+            counter = get_unaligned_le16(data + 5);
+            value   = get_unaligned_le64(data + 7);
 
-            hid_info(hdev, "event %d: %08x %04x %08x\n", id, usage, counter, value);
+            hid_info(hdev, "event %d: %08x %04x %016llx\n", id, usage, counter, value);
             break;
 
         default:
