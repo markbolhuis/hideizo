@@ -200,9 +200,6 @@ struct eizo_data {
 
     struct hid_device *vdev;
     bool is_vdev_open;
-
-    unsigned pseudo_desc_size;
-    u8 *pseudo_desc;
 };
 
 #endif // EIZO_H_FILE
