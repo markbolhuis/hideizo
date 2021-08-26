@@ -14,84 +14,117 @@
 
 #include "eizo.h"
 
-int eizo_set_value(struct hid_device *hdev, u32 usage, u8 value[32]) {
+int eizo_set_value(struct hid_device *hdev, u32 usage, u8 *value, size_t value_len) {
     struct eizo_data *data;
+    struct hid_report *report;
+    u8 *report_buf;
+    u32 report_len;
     u16 counter;
-    u8 *report;
     int ret;
 
     data = hid_get_drvdata(hdev);
-    if (!data) {
-        return -ENODATA;
+    counter = data->counter;
+
+    report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[EIZO_REPORT_SET];
+    report_len = hid_report_len(report);
+
+    if(value_len > (report_len - 7)) {
+        report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[EIZO_REPORT_SET2];
+        report_len = hid_report_len(report);
+
+        if(value_len > (report_len - 7)) {
+            return -EINVAL;
+        }
     }
 
-    report = kzalloc(39, GFP_KERNEL);
-    if (!report) {
+    report_buf = kzalloc(report_len, GFP_KERNEL);
+    if (!report_buf) {
         return -ENOMEM;
     }
 
-    mutex_lock(&data->lock);
-    counter = data->counter;
+    report_buf[0] = (u8)report->id;
+    put_unaligned_le32(usage, report_buf + 1);
+    put_unaligned_le16(counter, report_buf + 5);
+    memcpy(report_buf + 7, value, value_len);
 
-    put_unaligned_le32(usage, report + 1);
-    put_unaligned_le16(counter, report + 5);
-    memcpy(&report[7], value, 32);
-
-    ret = hid_hw_raw_request(hdev, EIZO_REPORT_SET, report, 39, HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+    ret = hid_hw_raw_request(
+            hdev,
+            report_buf[0],
+            report_buf,
+            report_len,
+            report->type,
+            HID_REQ_SET_REPORT);
     if (ret < 0) {
-        hid_err(hdev, "failed to set hid report: %d\n", ret);
+        hid_err(hdev, "%s failed to set report: %d\n", __func__, ret);
         goto exit;
     }
 
     ret = 0;
 exit:
-    mutex_unlock(&data->lock);
-    kfree(report);
+    kfree(report_buf);
     return ret;
 }
 
-int eizo_get_value(struct hid_device *hdev, u32 usage, u8 value[32]) {
+int eizo_get_value(struct hid_device *hdev, u32 usage, u8 *value, size_t value_len) {
     struct eizo_data *data;
+    struct hid_report *report;
+    u8 *report_buf;
+    u32 report_len;
     u16 counter;
-    u8 *report;
     int ret;
 
     data = hid_get_drvdata(hdev);
-    if (!data) {
-        hid_err(hdev, "failed to get eizo_data\n");
-        return -ENODATA;
+    counter = data->counter;
+
+    report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[EIZO_REPORT_GET];
+    report_len = hid_report_len(report);
+
+    if(value_len > (report_len - 7)) {
+        report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[EIZO_REPORT_GET2];
+        report_len = hid_report_len(report);
+
+        if(value_len > (report_len - 7)) {
+            return -EINVAL;
+        }
     }
 
-    report = kzalloc(39, GFP_KERNEL);
-    if (!report) {
-        hid_err(hdev, "failed to allocate report buffer");
+    report_buf = kzalloc(report_len, GFP_KERNEL);
+    if (!report_buf) {
         return -ENOMEM;
     }
 
-    mutex_lock(&data->lock);
-    counter = data->counter;
+    report_buf[0] = (u8)report->id;
+    put_unaligned_le32(usage, report_buf + 1);
+    put_unaligned_le16(counter, report_buf + 5);
 
-    put_unaligned_le32(usage, report + 1);
-    put_unaligned_le16(counter, report + 5);
-
-    ret = hid_hw_raw_request(hdev, EIZO_REPORT_GET, report, 39, HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+    ret = hid_hw_raw_request(
+            hdev,
+            report_buf[0],
+            report_buf,
+            report_len,
+            report->type,
+            HID_REQ_SET_REPORT);
     if (ret < 0) {
-        hid_err(hdev, "failed to set hid report: %d\n", ret);
+        hid_err(hdev, "%s failed to set report: %d\n", __func__, ret);
         goto exit;
     }
 
-    ret = hid_hw_raw_request(hdev, EIZO_REPORT_GET, report, 39, HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+    ret = hid_hw_raw_request(
+            hdev,
+            report_buf[0],
+            report_buf,
+            report_len,
+            report->type,
+            HID_REQ_GET_REPORT);
     if (ret < 0) {
-        hid_err(hdev, "failed to get hid report: %d\n", ret);
+        hid_err(hdev, "%s failed to get report: %d\n", __func__, ret);
         goto exit;
     }
 
-    memcpy(value, &report[7], 32);
-
+    memcpy(value, report_buf + 7, value_len);
     ret = 0;
 exit:
-    mutex_unlock(&data->lock);
-    kfree(report);
+    kfree(report_buf);
     return ret;
 }
 
@@ -174,14 +207,12 @@ static int eizo_ll_parse(struct hid_device *hdev) {
 
     ret = hid_hw_raw_request(parent, EIZO_REPORT_DESC, report, 517, HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
     if (ret < 0) {
-        hid_err(parent, "failed to set hid report: %d\n", ret);
         kfree(report);
         return ret;
     }
 
     ret = hid_hw_raw_request(parent, EIZO_REPORT_DESC, report, 517, HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
     if (ret < 0) {
-        hid_err(parent, "failed to get block at 0x0000 of pseudo descriptor: %d\n", ret);
         kfree(report);
         return ret;
     }
@@ -190,7 +221,6 @@ static int eizo_ll_parse(struct hid_device *hdev) {
     size   = get_unaligned_le16(report + 3);
 
     if (offset != 0) {
-        hid_err(parent, "pseudo descriptor block offset incorrect: 0x%04x != 0x0000\n", offset);
         kfree(report);
         return -EPERM;
     }
@@ -209,21 +239,13 @@ static int eizo_ll_parse(struct hid_device *hdev) {
 
         ret = hid_hw_raw_request(parent, EIZO_REPORT_DESC, report, 517, HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
         if (ret < 0) {
-            hid_err(parent, "failed to get block at 0x%04x of pseudo descriptor: %d\n", pos, ret);
             goto free;
         }
 
         offset = get_unaligned_le16(report + 1);
         size2  = get_unaligned_le16(report + 3);
 
-        if(offset != pos) {
-            hid_err(parent, "pseudo descriptor block offset incorrect: 0x%04x != 0x%04x\n", offset, pos);
-            ret = -EPERM;
-            goto free;
-        }
-
-        if (size != size2) {
-            hid_err(parent, "pseudo descriptor block size mismatch: %u != %u\n", size, size2);
+        if(offset != pos || size != size2) {
             ret = -EPERM;
             goto free;
         }
@@ -281,10 +303,8 @@ static int eizo_ll_raw_request(struct hid_device *hdev,
                                int reqtype) {
     struct hid_device *parent;
     struct hid_report *report;
-    struct eizo_data *data;
-    u8 *buffer;
-    u16 counter;
     u32 usage;
+    u32 rlen;
     int ret;
 
     hid_info(hdev, "%s: count %lu, report_type %u, reqtype %u, reportnum %u\n",
@@ -296,60 +316,45 @@ static int eizo_ll_raw_request(struct hid_device *hdev,
         return -EINVAL;
     }
 
-    parent  = to_hid_device(hdev->dev.parent);
-    data    = hid_get_drvdata(hdev);
-    usage   = eizo_get_usage_from_report(report);
-    counter = data->counter;
-
-    hid_info(hdev, "%s: usage 0x%08x, counter 0x%02x\n", __func__, usage, counter);
-
-    buffer = kzalloc(39, GFP_KERNEL);
-    if (!buffer) {
-        return -ENOMEM;
+    rlen = hid_report_len(report);
+    if (count == 0 || count > rlen) {
+        return -EINVAL;
     }
 
-    put_unaligned_le32(usage,   buffer + 1);
-    put_unaligned_le16(counter, buffer + 5);
+    parent = to_hid_device(hdev->dev.parent);
+    usage  = eizo_get_usage_from_report(report);
+
+    hid_info(hdev, "%s: usage 0x%08x, rlen: %d, id: %d\n",
+             __func__,
+             usage,
+             rlen,
+             report->id);
 
     switch (reqtype) {
         case HID_REQ_SET_REPORT:
-            buffer[0] = EIZO_REPORT_SET;
-
-            memcpy(buffer + 7, buf + 1, count - 1);
-            ret = hid_hw_raw_request(parent, buffer[0], buffer, 39, report_type, HID_REQ_SET_REPORT);
+            ret = eizo_set_value(parent, usage, buf + 1, count - 1);
             if(ret < 0) {
-                hid_err(hdev, "failed to set req on set\n");
+                hid_err(parent, "failed to set value: %d\n", ret);
                 goto err;
             }
             break;
 
         case HID_REQ_GET_REPORT:
-            buffer[0] = EIZO_REPORT_GET;
-
-            ret = hid_hw_raw_request(parent, buffer[0], buffer, 39, report_type, HID_REQ_SET_REPORT);
+            ret = eizo_get_value(parent, usage, buf + 1, count - 1);
             if(ret < 0) {
-                hid_err(hdev, "failed to set req on get\n");
+                hid_err(parent, "failed to get value: %d\n", ret);
                 goto err;
             }
-            ret = hid_hw_raw_request(parent, buffer[0], buffer, 39, report_type, HID_REQ_GET_REPORT);
-            if(ret < 0) {
-                hid_err(hdev, "failed to get req on get\n");
-                goto err;
-            }
-
             buf[0] = reportnum;
-            memcpy(buf + 1, buffer + 7, count - 1);
             break;
 
         default:
             hid_info(hdev, "unknown reqtype: %u\n", reqtype);
             break;
     }
-    kfree(buffer);
 
     return count;
-    err:
-    kfree(buffer);
+err:
     return ret;
 }
 
