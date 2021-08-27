@@ -14,6 +14,48 @@
 
 #include "eizo.h"
 
+int eizo_verify(struct hid_device *hdev, u32 usage) {
+    struct hid_report *report;
+    u32 report_len, actual_usage;
+    u8 *report_buf;
+    // u16 counter;
+    u8 value;
+    int ret;
+
+    report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[EIZO_REPORT_VERIFY];
+    report_len = hid_report_len(report);
+
+    report_buf = kzalloc(report_len, GFP_KERNEL);
+    if(!report_buf){
+        return -ENOMEM;
+    }
+
+    ret = hid_hw_raw_request(
+            hdev,
+            EIZO_REPORT_VERIFY,
+            report_buf,
+            report_len,
+            report->type,
+            HID_REQ_GET_REPORT);
+    if(ret < 0) {
+        goto exit;
+    }
+
+    actual_usage = get_unaligned_le32(report_buf + 1);
+    // counter      = get_unaligned_le16(report_buf + 5);
+    value        = report_buf[7];
+
+    if(usage != actual_usage || value != 0) {
+        ret = -EIO;
+        goto exit;
+    }
+
+    ret = 0;
+exit:
+    kfree(report_buf);
+    return ret;
+}
+
 int eizo_set_value(struct hid_device *hdev, u32 usage, u8 *value, size_t value_len) {
     struct eizo_data *data;
     struct hid_report *report;
@@ -59,7 +101,7 @@ int eizo_set_value(struct hid_device *hdev, u32 usage, u8 *value, size_t value_l
         goto exit;
     }
 
-    ret = 0;
+    ret = eizo_verify(hdev, usage);
 exit:
     kfree(report_buf);
     return ret;
@@ -121,8 +163,10 @@ int eizo_get_value(struct hid_device *hdev, u32 usage, u8 *value, size_t value_l
         goto exit;
     }
 
-    memcpy(value, report_buf + 7, value_len);
-    ret = 0;
+    ret = eizo_verify(hdev, usage);
+    if(ret == 0) {
+        memcpy(value, report_buf + 7, value_len);
+    }
 exit:
     kfree(report_buf);
     return ret;
