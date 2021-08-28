@@ -1,0 +1,2 @@
+SUBSYSTEM=="usb", ATTRS{idVendor}=="056d", ATTRS{idProduct}=="*", GROUP="eizo"
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="056d", ATTRS{idProduct}=="*", GROUP="eizo"
