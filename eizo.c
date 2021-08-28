@@ -355,8 +355,12 @@ static int eizo_ll_raw_request(struct hid_device *hdev,
     }
 
     rlen = hid_report_len(report);
-    if (count == 0 || count > rlen) {
-        return -EINVAL;
+    if(count == 0) {
+        return 0;
+    }
+    if(count > rlen) {
+        hid_warn(hdev, "%s: input buffer size exceeds report size", __func__);
+        count = (size_t)rlen;
     }
 
     parent = to_hid_device(hdev->dev.parent);
