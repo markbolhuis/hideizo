@@ -318,15 +318,9 @@ static int eizo_ll_open(struct hid_device *hdev) {
 
     data = dev_get_drvdata(hdev->dev.parent);
     mutex_lock(&data->lock);
-
-    if(data->is_vdev_open) {
-        mutex_unlock(&data->lock);
-        return -EPERM;
-    }
-
     data->is_vdev_open = true;
-
     mutex_unlock(&data->lock);
+
     return 0;
 }
 
