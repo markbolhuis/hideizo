@@ -518,7 +518,7 @@
 0x09, 0x5B,        //   Usage (0x5B)
 0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
 
-// ?
+// Timestamp?
 0x85, 0x2C,        //   Report ID (44)
 0x75, 0x08,        //   Report Size (8)
 0x95, 0x08,        //   Report Count (8)
@@ -576,7 +576,7 @@
 0x09, 0xF2,        //   Usage (0xF2)
 0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
 
-// ?
+// Screen
 0x85, 0x32,        //   Report ID (50)
 0x75, 0x08,        //   Report Size (8)
 0x95, 0x01,        //   Report Count (1)
