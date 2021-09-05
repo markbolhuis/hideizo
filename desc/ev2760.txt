@@ -312,7 +312,7 @@
 0x09, 0xC3,        //   Usage (0xC3)
 0xB2, 0x02, 0x01,  //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile,Buffered Bytes)
 
-// ?
+// Emergency Power
 0x85, 0x17,        //   Report ID (23)
 0x75, 0x10,        //   Report Size (16)
 0x95, 0x02,        //   Report Count (2)
@@ -354,7 +354,7 @@
 0x09, 0xCB,        //   Usage (0xCB)
 0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
 
-// ?
+// Firmware Version
 0x85, 0x1B,        //   Report ID (27)
 0x75, 0x08,        //   Report Size (8)
 0x95, 0x12,        //   Report Count (18)
@@ -376,7 +376,7 @@
 
 0x06, 0x01, 0xFF,  //   Usage Page (Vendor Defined 0xFF01)
 
-// Unknown
+// Bright Reg Operation
 0x85, 0x1D,        //   Report ID (29)
 0x75, 0x10,        //   Report Size (16)
 0x95, 0x01,        //   Report Count (1)
@@ -498,7 +498,7 @@
 0x09, 0x59,        //   Usage (0x59)
 0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
 
-// ?
+// EV Custom Key Lock
 0x85, 0x29,        //   Report ID (41)
 0x75, 0x08,        //   Report Size (8)
 0x95, 0x06,        //   Report Count (6)
@@ -581,7 +581,7 @@
 0x09, 0xF2,        //   Usage (0xF2)
 0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
 
-// Screen
+// EV Active Window
 0x85, 0x32,        //   Report ID (50)
 0x75, 0x08,        //   Report Size (8)
 0x95, 0x01,        //   Report Count (1)
@@ -592,7 +592,7 @@
 0x09, 0xF9,        //   Usage (0xF9)
 0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
 
-// ?
+// EV PicByPic Layout
 0x85, 0x33,        //   Report ID (51)
 0x75, 0x08,        //   Report Size (8)
 0x95, 0x01,        //   Report Count (1)
@@ -603,7 +603,11 @@
 0x09, 0xFA,        //   Usage (0xFA)
 0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
 
-// ?
+// Missing 0x00FBFF01
+// Requires Pic-by-Pic active
+// Switching values disconnects and reconnects usb.
+
+// Active Window Hightlight
 0x85, 0x35,        //   Report ID (53)
 0x75, 0x08,        //   Report Size (8)
 0x95, 0x01,        //   Report Count (1)
@@ -614,7 +618,7 @@
 0x09, 0xFC,        //   Usage (0xFC)
 0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
 
-// Standby
+// Compatibility Mode
 0x85, 0x36,        //   Report ID (54)
 0x75, 0x08,        //   Report Size (8)
 0x95, 0x01,        //   Report Count (1)
@@ -640,7 +644,7 @@
 0x95, 0x01,        //   Report Count (1)
 0x15, 0x00,        //   Logical Minimum (0)
 0x27, 0xFF, 0xFF, 0x1F, 0x00,  //   Logical Maximum (2097150)
-0x0A, 0x0D, 0x01,  //   Usage (0x010D0x010D)
+0x0A, 0x0D, 0x01,  //   Usage (0x010D)
 0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
 
 // ?
@@ -674,9 +678,7 @@
 0x09, 0x06,        //   Usage (0x06)
 0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
 
-// Something to do with gamma and debug
-// is x11 when in user mode
-// is 0 when in debug mode, but only if gamma is off otherwise x11
+// Front LUT Enabled
 0x85, 0x3C,        //   Report ID (60)
 0x75, 0x08,        //   Report Size (8)
 0x95, 0x01,        //   Report Count (1)
@@ -741,7 +743,7 @@
 0x09, 0x36,        //   Usage (0x36)
 0xB2, 0x02, 0x01,  //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile,Buffered Bytes)
 
-// ?
+// EDID/DDC Write
 0x85, 0x43,        //   Report ID (67)
 0x75, 0x08,        //   Report Size (8)
 0x95, 0x01,        //   Report Count (1)
@@ -822,7 +824,7 @@
 0x09, 0xDC,        //   Usage (0xDC)
 0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
 
-// Fetches a lot of data
+// Gain Definition
 0x85, 0x4C,        //   Report ID (76)
 0x75, 0x08,        //   Report Size (8)
 0x95, 0x2D,        //   Report Count (45)
