@@ -219,6 +219,9 @@ struct eizo_data {
 
     struct hid_device *vdev;
     bool is_vdev_open;
+
+    char serial[9];
+    char model[17];
 };
 
 #endif // EIZO_H_FILE

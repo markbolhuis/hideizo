@@ -200,6 +200,39 @@ exit:
     return ret;
 }
 
+int eizo_get_sn_model(struct hid_device *hdev) {
+    struct eizo_data *data;
+    u8 *report;
+    int ret;
+
+    data = hid_get_drvdata(hdev);
+
+    report = kzalloc(25, GFP_KERNEL);
+    if (!report) {
+        return -ENOMEM;
+    }
+
+    ret = hid_hw_raw_request(
+            hdev,
+            EIZO_REPORT_SN_MODEL,
+            report,
+            25,
+            HID_FEATURE_REPORT,
+            HID_REQ_GET_REPORT);
+    if (ret < 0) {
+        hid_err(hdev, "%s failed to get hid report: %d\n", __func__, ret);
+        goto exit;
+    }
+
+    memcpy(data->serial, report + 1, 8);
+    memcpy(data->model, strim(report + 9), 16);
+
+    ret = 0;
+exit:
+    kfree(report);
+    return ret;
+}
+
 
 u32 eizo_get_usage_from_report(struct hid_report *report) {
     u32 hid;
@@ -218,7 +251,6 @@ struct hid_report *eizo_get_report_from_usage(struct hid_device *hdev, int type,
     u32 hid;
 
     report_list = &hdev->report_enum[type].report_list;
-    report = NULL;
 
     list_for_each_entry(report, report_list, list) {
         if(report->maxfield == 0) {
@@ -228,11 +260,11 @@ struct hid_report *eizo_get_report_from_usage(struct hid_device *hdev, int type,
         hid = (u32)report->field[0]->usage->hid;
         hid = ((hid << 16) & 0xffff0000) | ((hid >> 16) & 0x0000ffff);
         if(usage == hid) {
-            break;
+            return report;
         }
     }
 
-    return report;
+    return NULL;
 }
 
 
@@ -439,8 +471,9 @@ int eizo_create_hid_device(struct hid_device *hdev) {
 
     vdev->group      = HID_GROUP_EIZO;
 
-    strlcpy(vdev->name, hdev->name, sizeof(vdev->name));
-    strlcpy(vdev->phys, hdev->phys, sizeof(vdev->phys));
+    snprintf(vdev->name, sizeof(vdev->name), "EIZO FlexScan %s", data->model);
+    strlcpy(vdev->phys, dev_name(&hdev->dev), sizeof(vdev->phys));
+    strlcpy(vdev->uniq, data->serial, 9);
 
     ret = hid_add_device(vdev);
     if (ret < 0) {
@@ -457,29 +490,32 @@ int eizo_create_hid_device(struct hid_device *hdev) {
 }
 
 
-void eizo_init(struct hid_device *hdev) {
+int eizo_init(struct hid_device *hdev) {
     struct eizo_data *data;
     int ret;
 
     data = hid_get_drvdata(hdev);
-    if(!data) {
-        hid_err(hdev, "failed to get eizo_data\n");
-        return;
-    }
-
     mutex_init(&data->lock);
 
     ret = eizo_get_counter(hdev);
     if (ret < 0) {
         hid_err(hdev, "failed to get counter from monitor\n");
-        return;
+        return ret;
+    }
+
+    ret = eizo_get_sn_model(hdev);
+    if(ret < 0) {
+        hid_err(hdev, "failed to get sn model from monitor\n");
+        return ret;
     }
 
     ret = eizo_create_hid_device(hdev);
     if (ret < 0) {
         hid_err(hdev, "failed to create vdev\n");
-        return;
+        return ret;
     }
+
+    return 0;
 }
 
 void eizo_uninit(struct hid_device *hdev) {
@@ -551,60 +587,66 @@ static void eizo_hid_driver_remove(struct hid_device *hdev) {
     hid_hw_stop(hdev);
 }
 
-static int eizo_hid_driver_raw_event(struct hid_device *hdev, struct hid_report *report, u8 *data, int size) {
-    struct eizo_data *e_data;
-    struct hid_device *child;
-    struct hid_report *child_report;
-    u32 usage;
-    u64 value;
-    u16 counter;
-    u8 id;
-    u32 rlen;
-    u8 *buffer;
 
-    e_data = hid_get_drvdata(hdev);
-    child = e_data->vdev;
+int eizo_report_get_event(struct hid_device *child, struct hid_report *report, u8 *data, int size) {
+    struct hid_report *child_report;
+    u32 usage, rlen;
+    u16 counter;
+    u8 *buffer;
+    int ret;
+
+    usage   = get_unaligned_le32(data + 1);
+    counter = get_unaligned_le16(data + 5);
+
+    child_report = eizo_get_report_from_usage(child, report->type, usage);
+    if(!child_report) {
+        hid_err(child, "%s: failed to find report with usage 0x%08x\n", __func__, usage);
+        return -EINVAL;
+    }
+
+    hid_info(child, "%s: usage 0x%08x, counter 0x%04x, id %d\n", __func__, usage, counter, child_report->id);
+
+    rlen = hid_report_len(child_report);
+    if(rlen - 1 > size - 7) {
+        hid_err(child, "%s: report len %u > data len %ul\n", __func__, rlen, size);
+        return -EINVAL;
+    }
+
+    buffer = kzalloc(rlen, GFP_KERNEL);
+    if(!buffer) {
+        return -ENOMEM;
+    }
+
+    buffer[0] = (u8)child_report->id;
+    memcpy(buffer + 1, data + 7, rlen - 1);
+
+    ret = hid_report_raw_event(child, report->type, buffer, rlen, 1);
+
+    kfree(buffer);
+    return ret;
+}
+
+static int eizo_hid_driver_raw_event(struct hid_device *hdev, struct hid_report *report, u8 *data, int size) {
+    struct eizo_data *edata;
+    struct hid_device *child;
+    int ret;
+
+    edata = hid_get_drvdata(hdev);
+    child = edata->vdev;
 
     switch(report->id) {
-
-        case EIZO_REPORT_SET:
-        case EIZO_REPORT_SET2:
-            break;
-
         case EIZO_REPORT_GET:
         case EIZO_REPORT_GET2:
-            id      = data[0];
-            usage   = get_unaligned_le32(data + 1);
-            counter = get_unaligned_le16(data + 5);
-            value   = get_unaligned_le64(data + 7);
-
-            hid_info(hdev, "event %d: %08x %04x %016llx\n", id, usage, counter, value);
-
-            child_report = eizo_get_report_from_usage(child, report->type, usage);
-            if(!child_report) {
-                hid_err(hdev, "failed to find report with usage %04x\n", usage);
-                break;
-            }
-
-            rlen = hid_report_len(child_report);
-            buffer = kzalloc(rlen, GFP_KERNEL);
-
-            hid_info(hdev, "report: %u len: %u\n", child_report->id, rlen);
-
-            buffer[0] = child_report->id;
-            memcpy(buffer + 1, data + 7, rlen - 1);
-
-            hid_report_raw_event(child, report->type, buffer, rlen, 1);
-
-            kfree(buffer);
+            ret = eizo_report_get_event(child, report, data, size);
             break;
 
         default:
-            hid_info(hdev, "event %d\n", report->id);
+            hid_err(hdev, "%s: invalid report id: %d\n", __func__, report->id);
+            ret = -EINVAL;
             break;
     }
 
-    return 0;
+    return ret;
 }
 
 static const struct hid_device_id eizo_hid_driver_id_table[] = {
