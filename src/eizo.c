@@ -147,7 +147,7 @@ int eizo_get_value(struct hid_device *hdev, u32 usage, u8 *value, size_t value_l
             report->type,
             HID_REQ_SET_REPORT);
     if (ret < 0) {
-        hid_err(hdev, "%s failed to set report: %d\n", __func__, ret);
+        hid_err(hdev, "%s: failed to set report: %d", __func__, ret);
         goto exit;
     }
 
@@ -159,7 +159,7 @@ int eizo_get_value(struct hid_device *hdev, u32 usage, u8 *value, size_t value_l
             report->type,
             HID_REQ_GET_REPORT);
     if (ret < 0) {
-        hid_err(hdev, "%s failed to get report: %d\n", __func__, ret);
+        hid_err(hdev, "%s: failed to get report: %d", __func__, ret);
         goto exit;
     }
 
@@ -178,9 +178,6 @@ int eizo_get_counter(struct hid_device *hdev) {
     int ret;
 
     data = hid_get_drvdata(hdev);
-    if(!data) {
-        return -ENODATA;
-    }
 
     report = kzalloc(3, GFP_KERNEL);
     if (!report) {
@@ -224,7 +221,7 @@ int eizo_get_sn_model(struct hid_device *hdev) {
         goto exit;
     }
 
-    memcpy(data->serial, report + 1, 8);
+    memcpy(data->serial, strim(report + 1), 8);
     memcpy(data->model, strim(report + 9), 16);
 
     ret = 0;
@@ -281,30 +278,40 @@ static int eizo_ll_parse(struct hid_device *hdev) {
         return -ENOMEM;
     }
 
-    ret = hid_hw_raw_request(parent, EIZO_REPORT_DESC, report, 517, HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+    ret = hid_hw_raw_request(
+            parent,
+            EIZO_REPORT_DESC,
+            report,
+            517,
+            HID_FEATURE_REPORT,
+            HID_REQ_SET_REPORT);
     if (ret < 0) {
-        kfree(report);
-        return ret;
+        goto free_report;
     }
 
-    ret = hid_hw_raw_request(parent, EIZO_REPORT_DESC, report, 517, HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+    ret = hid_hw_raw_request(
+            parent,
+            EIZO_REPORT_DESC,
+            report,
+            517,
+            HID_FEATURE_REPORT,
+            HID_REQ_GET_REPORT);
     if (ret < 0) {
-        kfree(report);
-        return ret;
+        goto free_report;
     }
 
     offset = get_unaligned_le16(report + 1);
     size   = get_unaligned_le16(report + 3);
 
     if (offset != 0) {
-        kfree(report);
-        return -EPERM;
+        ret = -EPERM;
+        goto free_report;
     }
 
     temp = kmalloc(size, GFP_KERNEL);
     if (!temp) {
-        kfree(report);
-        return -ENOMEM;
+        ret = -ENOMEM;
+        goto free_report;
     }
 
     cpy = min_t(unsigned int, size, 512);
@@ -313,9 +320,15 @@ static int eizo_ll_parse(struct hid_device *hdev) {
     for (pos = 512; pos < size; pos += 512) {
         cpy = min_t(unsigned int, size - pos, 512);
 
-        ret = hid_hw_raw_request(parent, EIZO_REPORT_DESC, report, 517, HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+        ret = hid_hw_raw_request(
+                parent,
+                EIZO_REPORT_DESC,
+                report,
+                517,
+                HID_FEATURE_REPORT,
+                HID_REQ_GET_REPORT);
         if (ret < 0) {
-            goto free;
+            goto free_temp;
         }
 
         offset = get_unaligned_le16(report + 1);
@@ -323,16 +336,16 @@ static int eizo_ll_parse(struct hid_device *hdev) {
 
         if(offset != pos || size != size2) {
             ret = -EPERM;
-            goto free;
+            goto free_temp;
         }
 
         memcpy(temp + pos, report + 5, cpy);
     }
 
     ret = hid_parse_report(hdev, temp, size);
-
-free:
+free_temp:
     kfree(temp);
+free_report:
     kfree(report);
     return ret;
 }
@@ -346,23 +359,29 @@ static void eizo_ll_stop(struct hid_device *hdev) {
 }
 
 static int eizo_ll_open(struct hid_device *hdev) {
-    struct eizo_data *data;
+    struct hid_device *parent;
+    int ret;
 
-    data = dev_get_drvdata(hdev->dev.parent);
-    mutex_lock(&data->lock);
-    data->is_vdev_open = true;
-    mutex_unlock(&data->lock);
+    hid_info(hdev, "%s", __func__);
 
-    return 0;
+    parent = to_hid_device(hdev->dev.parent);
+
+    ret = hid_hw_open(parent);
+    if (ret < 0) {
+        hid_err(parent, "%s: hid_hw_open failed: %d", __func__, ret);
+    }
+
+    return ret;
 }
 
 static void eizo_ll_close(struct hid_device *hdev) {
-    struct eizo_data *data;
+    struct hid_device *parent;
 
-    data = dev_get_drvdata(hdev->dev.parent);
-    mutex_lock(&data->lock);
-    data->is_vdev_open = false;
-    mutex_unlock(&data->lock);
+    hid_info(hdev, "%s", __func__);
+
+    parent = to_hid_device(hdev->dev.parent);
+
+    hid_hw_close(parent);
 }
 
 static int eizo_ll_raw_request(struct hid_device *hdev,
@@ -382,7 +401,7 @@ static int eizo_ll_raw_request(struct hid_device *hdev,
 
     report = hdev->report_enum[report_type].report_id_hash[reportnum];
     if (!report) {
-        hid_err(hdev, "invalid report type %u and id %u\n", report_type, reportnum);
+        hid_err(hdev, "%s: invalid report type %u and id %u\n", __func__, report_type, reportnum);
         return -EINVAL;
     }
 
@@ -448,14 +467,10 @@ int eizo_create_hid_device(struct hid_device *hdev) {
     int ret;
 
     data = hid_get_drvdata(hdev);
-    if (!data) {
-        hid_err(hdev, "failed to get eizo_data\n");
-        return -ENODATA;
-    }
 
     vdev = hid_allocate_device();
     if (!vdev) {
-        hid_err(hdev, "failed to allocate vdev\n");
+        hid_err(hdev, "%s: hid_allocate_device failed", __func__);
         return -ENOMEM;
     }
 
@@ -464,7 +479,7 @@ int eizo_create_hid_device(struct hid_device *hdev) {
     vdev->dev.parent = &hdev->dev;
     vdev->bus        = hdev->bus;
     vdev->vendor     = hdev->vendor;
-    vdev->product    = 0x40ff; // hdev->product;
+    vdev->product    = hdev->product;
     vdev->version    = hdev->version;
     vdev->type       = hdev->type;
     vdev->country    = hdev->country;
@@ -482,7 +497,6 @@ int eizo_create_hid_device(struct hid_device *hdev) {
     }
 
     data->vdev = vdev;
-    data->is_vdev_open = false;
 
     hid_set_drvdata(vdev, data);
 
@@ -499,19 +513,19 @@ int eizo_init(struct hid_device *hdev) {
 
     ret = eizo_get_counter(hdev);
     if (ret < 0) {
-        hid_err(hdev, "failed to get counter from monitor\n");
+        hid_err(hdev, "%s: eizo_get_counter failed: %d", __func__, ret);
         return ret;
     }
 
     ret = eizo_get_sn_model(hdev);
     if(ret < 0) {
-        hid_err(hdev, "failed to get sn model from monitor\n");
+        hid_err(hdev, "%s: eizo_get_sn_model failed: %d", __func__, ret);
         return ret;
     }
 
     ret = eizo_create_hid_device(hdev);
     if (ret < 0) {
-        hid_err(hdev, "failed to create vdev\n");
+        hid_err(hdev, "%s: eizo_create_hid_device failed: %d", __func__, ret);
         return ret;
     }
 
@@ -535,55 +549,48 @@ void eizo_uninit(struct hid_device *hdev) {
 
 static int eizo_hid_driver_probe(struct hid_device *hdev, const struct hid_device_id *id) {
     struct eizo_data *data;
-    int retval = 0;
+    int ret;
 
-    retval = hid_parse(hdev);
-    if(retval < 0) {
-        hid_err(hdev, "hid_parse failed\n");
-        return retval;
-    }
-
-    if (hdev->group == HID_GROUP_EIZO) {
-        return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
-    }
-
-    data = devm_kzalloc(&hdev->dev, sizeof(struct eizo_data), GFP_KERNEL);
-    if (!data) {
-        hid_err(hdev, "failed to allocate eizo_data\n");
-        return -ENOMEM;
-    }
-
-    retval = hid_hw_start(hdev, HID_CONNECT_HIDRAW);
-    if (retval < 0) {
-        hid_err(hdev, "hid_hw_start failed\n");
+    ret = hid_parse(hdev);
+    if(ret < 0) {
+        hid_err(hdev, "%s: hid_parse failed: %d", __func__, ret);
         goto exit;
     }
 
-    hid_set_drvdata(hdev, data);
-    eizo_init(hdev);
+    ret = hid_hw_start(hdev, HID_CONNECT_HIDRAW);
+    if (ret < 0) {
+        hid_err(hdev, "%s: hid_hw_start failed: %d", __func__, ret);
+        goto exit;
+    }
 
-    retval = hid_hw_open(hdev);
-    if (retval < 0) {
-        hid_err(hdev, "hid_hw_open failed\n");
-        goto stop;
+    if (hdev->group == HID_GROUP_GENERIC) {
+        data = devm_kzalloc(&hdev->dev, sizeof(struct eizo_data), GFP_KERNEL);
+        if (!data) {
+            hid_err(hdev, "%s: failed to allocate eizo_data", __func__);
+            ret = -ENOMEM;
+            goto stop;
+        }
+
+        hid_set_drvdata(hdev, data);
+
+        ret = eizo_init(hdev);
+        if (ret < 0) {
+            hid_err(hdev, "%s: eizo_init failed: %d", __func__, ret);
+            goto stop;
+        }
     }
 
     return 0;
-close:
-    hid_hw_close(hdev);
 stop:
     hid_hw_stop(hdev);
 exit:
-    return retval;
+    return ret;
 }
 
 static void eizo_hid_driver_remove(struct hid_device *hdev) {
-    if (hdev->group == HID_GROUP_EIZO) {
-        hid_hw_stop(hdev);
-        return;
+    if (hdev->group == HID_GROUP_GENERIC) {
+        eizo_uninit(hdev);
     }
-    eizo_uninit(hdev);
-    hid_hw_close(hdev);
     hid_hw_stop(hdev);
 }
 
@@ -604,7 +611,8 @@ int eizo_report_get_event(struct hid_device *child, struct hid_report *report, u
         return -EINVAL;
     }
 
-    hid_info(child, "%s: usage 0x%08x, counter 0x%04x, id %d\n", __func__, usage, counter, child_report->id);
+    hid_info(child, "%s: usage 0x%08x, counter 0x%04x, id %d, type %d\n",
+             __func__, usage, counter, child_report->id, report->type);
 
     rlen = hid_report_len(child_report);
     if(rlen - 1 > size - 7) {
@@ -631,6 +639,10 @@ static int eizo_hid_driver_raw_event(struct hid_device *hdev, struct hid_report 
     struct hid_device *child;
     int ret;
 
+    if (hdev->group == HID_GROUP_EIZO) {
+        return 0;
+    }
+
     edata = hid_get_drvdata(hdev);
     child = edata->vdev;
 
@@ -650,20 +662,25 @@ static int eizo_hid_driver_raw_event(struct hid_device *hdev, struct hid_report 
 }
 
 static const struct hid_device_id eizo_hid_driver_id_table[] = {
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2450) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2451) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2455) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2456) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2457) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2460) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2750) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2760) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2785) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV2795) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV3237) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV3285) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, USB_PRODUCT_ID_EIZO_EV3895) },
-        { HID_USB_DEVICE(USB_VENDOR_ID_EIZO, 0x40ff) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2450) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2451) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2455) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2456) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2457) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2460) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2750) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2760) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2785) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2795) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV3237) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV3285) },
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV3895) },
+        {
+            .bus = HID_BUS_ANY,
+            .group = HID_GROUP_EIZO,
+            .vendor = USB_VENDOR_ID_EIZO,
+            .product = HID_ANY_ID,
+        },
         { },
 };
 

@@ -38,6 +38,12 @@
 
 #define HID_GROUP_EIZO        0x0106
 
+#define EIZO_DEVICE(prod) \
+	.bus = BUS_USB,          \
+    .group = HID_GROUP_GENERIC, \
+    .vendor = USB_VENDOR_ID_EIZO, \
+    .product = prod
+
 /*
  *  Usages
  *  These appear to be 'standard' hid usages where bytes 1 and 2 are the usage page
@@ -218,7 +224,6 @@ struct eizo_data {
     u16 counter;
 
     struct hid_device *vdev;
-    bool is_vdev_open;
 
     char serial[9];
     char model[17];
