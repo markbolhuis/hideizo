@@ -662,6 +662,7 @@ static int eizo_hid_driver_raw_event(struct hid_device *hdev, struct hid_report 
 }
 
 static const struct hid_device_id eizo_hid_driver_id_table[] = {
+        { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2360) },
         { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2450) },
         { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2451) },
         { EIZO_DEVICE(USB_PRODUCT_ID_EIZO_EV2455) },
