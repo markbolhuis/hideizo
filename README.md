@@ -18,8 +18,8 @@ EV2795  | 27      | 405F   |
 EV2495  | 24.1    | 405E   |
 EV3285  | 31.5    | 4037   |
 EV2785  | 27      | 4036   |
-EV2780  | 27      |        |
-EV2480  | 23.8    |        |
+EV2780  | 27      | 402b   |
+EV2480  | 23.8    | 406a   |
 EV2760  | 27      | 4059   | ✅
 EV2750  | 27      | 4014   |
 EV2457  | 24.1    | 4044   |
@@ -41,7 +41,6 @@ you have appropriate permissions using `udev/eizo.rules`, and add yourself to th
 
 ```c
 #include <stdio.h>
-#include <memory.h>
 #include <hidapi/hidapi.h>
 
 int main() {
