@@ -1,3 +1,8 @@
+> **Note**
+> This driver being replaced by a userspace library [libeizo](https://github.com/markbolhuis/libeizo).
+> 
+> If you want help with your monitor open any issues there.
+
 OpenEizo
 ========
 A small WIP Linux HID device driver to control Eizo EV FlexScan monitors.
